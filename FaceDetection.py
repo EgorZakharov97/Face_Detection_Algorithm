@@ -31,7 +31,7 @@ def step1():
     mean = d.mean(axis=1)
     # Subtract x from every column of the d x n matrix
     L = (d.transpose() - mean).transpose()
-    print(L)
+    
 
 
 step1()
