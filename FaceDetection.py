@@ -20,22 +20,37 @@ def readFaces():
         d[:,1] = reshaped
 
     return d
-    
 
 def step1():
     print("Reading faces...")
     d = readFaces()
-    # d = np.array([[1,2,3],[4,5,6],[7,8,9]])
+    # d = np.array([[1,2,3],[4,5,6],[7,8,9],[10,11,12]])
     
     print("Pricessing...")
     # Calculate the average column x
     mean = d.mean(axis=1)
     # Subtract x from every column of the d x n matrix
-    L = (d.transpose() - mean).transpose()
- 
+    LT = (d.transpose() - mean)
+    L = LT.transpose()
 
+    # WHY do we need this?????
+    LTL = np.matmul(LT, L)
+    LTL = (1/(SIZE-1))*LTL
+    # ????
 
+    eigenFaces = findEigenFaces([], L)
+    weights = findWeight(eigenFaces, [])
 
+    is_face = testImage(weights, mean)
+
+    # the test image is the image we already have in the library
+    if(is_face > 0):
+        print("The image is a face that we already have")
+    elif(is_face == 0):
+        print("The image is a new face")
+    else:
+        print("The image is not a face")
+    
 
 #Step 2
 #find eigenvalues, eigenvectors, and corresponding eigenfaces
@@ -92,6 +107,40 @@ def findWeight(eigenFaces, Lj):
 
     return weightVector
 
+# STEP 4
+# Read a test image, concatenate pixels
+# Test if the image is a face
+def testImage(weights, mean, filename="test.png"):
+    img = imf.read_image(filename)
+    max_shade, data = img
+    data = data.reshape(-1)
+
+    mean = np.mean(mean) # mean is an array, we want an int
+    z = (data.transpose() - mean).transpose() # subtract mean from image data
+    eigenFace = findEigenFaces([], z) # find eigenFaces
+    w = findWeight(eigenFace, []) # find weight vector (is it an int?)
+
+    distances = np.zeros((SIZE)) # the distance vector
+    j = 2
+
+    for i in range(weights):
+        distances[i] = math.abs(weights[i] - w)
+
+    d = np.min(distances) # the minimal distance to a pic from library
+
+    # low and high boundaries
+    d_low = np.min(weights)
+    d_high = np.max(weights)
+
+    # the test image is the image we already have in the library
+    if(d < d_low):
+        return 1
+    # the image is a new face
+    elif(d > d_high):
+        return 0
+    # the image is not a face
+    else:
+        return -1
 
 
 step1()
