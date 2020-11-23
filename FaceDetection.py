@@ -3,6 +3,7 @@ from numpy import linalg as la
 import math
 import imagefuncs_A3 as imf
 import os
+import sys
 
 SIZE = 200
 MAX_SHADE = 255
@@ -21,7 +22,7 @@ def readFaces():
 
     return d
 
-def step1():
+def detectFace(filename):
     print("Reading faces...")
     d = readFaces()
     # d = np.array([[1,2,3],[4,5,6],[7,8,9],[10,11,12]])
@@ -41,7 +42,7 @@ def step1():
     eigenFaces = findEigenFaces([], L)
     weights = findWeight(eigenFaces, [])
 
-    is_face = testImage(weights, mean)
+    is_face = testImage(weights, mean, filename)
 
     # the test image is the image we already have in the library
     if(is_face > 0):
@@ -143,4 +144,9 @@ def testImage(weights, mean, filename="test.png"):
         return -1
 
 
-step1()
+file_to_test = "Faces/face_1.png"
+
+if len(sys.argv) > 1:
+    file_to_test = sys.argv[1]
+
+detectFace(file_to_test)
