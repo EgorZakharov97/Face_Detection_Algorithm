@@ -25,23 +25,26 @@ def readFaces():
 def detectFace(filename):
     print("Reading faces...")
     d = readFaces()
-    # d = np.array([[1,2,3],[4,5,6],[7,8,9],[10,11,12]])
+    # d = np.array([[1,2,3],[4,5,6],[7,8,9]])
     
-    print("Pricessing...")
+    print("Building library...")
     # Calculate the average column x
     mean = d.mean(axis=1)
     # Subtract x from every column of the d x n matrix
     LT = (d.transpose() - mean)
     L = LT.transpose()
 
-    # WHY do we need this?????
-    LTL = np.matmul(LT, L)
-    LTL = (1/(SIZE-1))*LTL
-    # ????
+    covMatrix = np.matmul(LT, L)
+    covMatrix = (1/(SIZE-1))*covMatrix
 
-    eigenFaces = findEigenFaces([], L)
-    weights = findWeight(eigenFaces, [])
+    eigenFaces = findEigenFaces(covMatrix, L)
 
+    weights = np.zeros((SIZE**2,))
+
+    for i in range(SIZE**2):
+        weights[i] = findWeight(eigenFaces, L[:i])
+
+    print("Testing...\n")
     is_face = testImage(weights, mean, filename)
 
     # the test image is the image we already have in the library
@@ -51,6 +54,8 @@ def detectFace(filename):
         print("The image is a new face")
     else:
         print("The image is not a face")
+
+    print()
     
 
 #Step 2
@@ -90,7 +95,7 @@ def findEigenFaces(covMatrix, L):
         temp = temp / la.norm(temp)
         eigenFaces.append( temp )
 
-    return np.array(eigenFaces)
+    return np.array(eigenFaces).flatten()
 
         
 
@@ -114,15 +119,19 @@ def findWeight(eigenFaces, Lj):
 def testImage(weights, mean, filename="test.png"):
     img = imf.read_image(filename)
     max_shade, data = img
-    data = data.reshape(-1)
+    data = data.flatten()
 
     mean = np.mean(mean) # mean is an array, we want an int
-    z = (data.transpose() - mean).transpose() # subtract mean from image data
-    eigenFace = findEigenFaces([], z) # find eigenFaces
-    w = findWeight(eigenFace, []) # find weight vector (is it an int?)
+    z = data - mean # subtract mean from image data
+
+    # calculate the covariance matrix
+    covMatrix = np.matmul(z.transpose(), z)
+    covMatrix = (1/(SIZE-1))*covMatrix
+
+    eigenFace = findEigenFaces(covMatrix, z) # find eigenFaces
+    w = findWeight(eigenFace, z) # z is a 1d array, we can pass it as it is
 
     distances = np.zeros((SIZE)) # the distance vector
-    j = 2
 
     for i in range(weights):
         distances[i] = math.abs(weights[i] - w)
