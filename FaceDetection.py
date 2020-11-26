@@ -18,7 +18,7 @@ def readFaces():
         img = imf.read_image(PATH + filename)
         max_shade, data = img
         reshaped = data.reshape(-1)
-        d[:,1] = reshaped
+        d[:,i] = reshaped
 
     return d
 
@@ -26,26 +26,43 @@ def detectFace(filename):
     print("Reading faces...")
     d = readFaces()
     # d = np.array([[1,2,3],[4,5,6],[7,8,9]])
+    n = d.shape[1]
     
     print("Building library...")
+
     # Calculate the average column x
     mean = d.mean(axis=1)
+
     # Subtract x from every column of the d x n matrix
+    # as a result we get a transpose of L
     LT = (d.transpose() - mean)
+
+    # find L
     L = LT.transpose()
 
-    covMatrix = np.matmul(LT, L)
-    covMatrix = (1/(SIZE-1))*covMatrix
+    # find LTL by matrix multiplication
+    LTL = np.matmul(LT, L)
 
-    eigenFaces = findEigenFaces(covMatrix, L)
+    # divide LTL by (n-1)
+    multiplier = 1/(n-1)
+    LTL = multiplier * LTL
 
-    weights = np.zeros((SIZE**2,))
+    # find eigenfaces
+    eigenfaces = findEigenFaces(LTL, L)
 
-    for i in range(SIZE**2):
-        weights[i] = findWeight(eigenFaces, L[:i])
+    # find weights
+    weights = [0] * n
 
+    for i in range(n):
+        col_L = L[:,i]
+        weights[i] = findWeight(eigenfaces, col_L)
+
+    weights = np.array(weights)
+
+    # Test an image
     print("Testing...\n")
-    is_face = testImage(weights, mean, filename)
+    new_mean = np.mean(mean)
+    is_face = testImage(eigenfaces, weights, new_mean, filename)
 
     # the test image is the image we already have in the library
     if(is_face > 0):
@@ -95,7 +112,7 @@ def findEigenFaces(covMatrix, L):
         temp = temp / la.norm(temp)
         eigenFaces.append( temp )
 
-    return np.array(eigenFaces).flatten()
+    return np.array(eigenFaces)
 
         
 
@@ -106,54 +123,48 @@ def findWeight(eigenFaces, Lj):
     xj = Lj.flatten()
 
     for i in range(0, len(eigenFaces)):
-        #get column slice from eigenFaces and flatten 
+        #get column slice from eigenFaces and flatten
         vi = eigenFaces[i].flatten()
        
         weightVector[i] = np.dot( xj, vi )
 
-    return weightVector
+    return np.array(weightVector)
 
 # STEP 4
 # Read a test image, concatenate pixels
 # Test if the image is a face
-def testImage(weights, mean, filename="test.png"):
+def testImage(eigenfaces, weights, mean, filename="test.png"):
     img = imf.read_image(filename)
     max_shade, data = img
     data = data.flatten()
 
-    mean = np.mean(mean) # mean is an array, we want an int
     z = data - mean # subtract mean from image data
 
-    # calculate the covariance matrix
-    covMatrix = np.matmul(z.transpose(), z)
-    covMatrix = (1/(SIZE-1))*covMatrix
+    w = findWeight(eigenfaces, z)
 
-    eigenFace = findEigenFaces(covMatrix, z) # find eigenFaces
-    w = findWeight(eigenFace, z) # z is a 1d array, we can pass it as it is
+    distances = [0] * len(weights) # the distance vector
 
-    distances = np.zeros((SIZE)) # the distance vector
-
-    for i in range(weights):
-        distances[i] = math.abs(weights[i] - w)
+    for i in range(len(weights)):
+        distances[i] = abs(weights[i] - w)
 
     d = np.min(distances) # the minimal distance to a pic from library
 
-    # low and high boundaries
-    d_low = np.min(weights)
-    d_high = np.max(weights)
+    print(d)
 
-    # the test image is the image we already have in the library
-    if(d < d_low):
-        return 1
-    # the image is a new face
-    elif(d > d_high):
-        return 0
-    # the image is not a face
-    else:
-        return -1
+    # # the test image is the image we already have in the library
+    # if(d < d_low):
+    #     return 1
+    # # the image is a new face
+    # elif(d_low < d and d < d_high):
+    #     return 0
+    # # the image is not a face
+    # else:
+    #     return -1
+
+    return -1
 
 
-file_to_test = "Faces/face_1.png"
+file_to_test = "./Faces/face_1.pgm"
 
 if len(sys.argv) > 1:
     file_to_test = sys.argv[1]
