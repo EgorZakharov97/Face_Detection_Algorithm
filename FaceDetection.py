@@ -25,7 +25,6 @@ def readFaces():
 def detectFace(filename):
     print("Reading faces...")
     d = readFaces()
-    # d = np.array([[1,2,3],[4,5,6],[7,8,9]])
     n = d.shape[1]
     
     print("Building library...")
@@ -61,18 +60,7 @@ def detectFace(filename):
 
     # Test an image
     print("Testing...\n")
-    new_mean = np.mean(mean)
-    is_face = testImage(eigenfaces, weights, new_mean, filename)
-
-    # the test image is the image we already have in the library
-    if(is_face > 0):
-        print("The image is a face that we already have")
-    elif(is_face == 0):
-        print("The image is a new face")
-    else:
-        print("The image is not a face")
-
-    print()
+    testImage(eigenfaces, weights, mean, filename)
     
 
 #Step 2
@@ -146,22 +134,11 @@ def testImage(eigenfaces, weights, mean, filename="test.png"):
 
     for i in range(len(weights)):
         distances[i] = abs(weights[i] - w)
+        index = i
 
     d = np.min(distances) # the minimal distance to a pic from library
 
-    print(d)
-
-    # # the test image is the image we already have in the library
-    # if(d < d_low):
-    #     return 1
-    # # the image is a new face
-    # elif(d_low < d and d < d_high):
-    #     return 0
-    # # the image is not a face
-    # else:
-    #     return -1
-
-    return -1
+    print("The closest distance is " + str(d))
 
 
 file_to_test = "./Faces/face_1.pgm"
