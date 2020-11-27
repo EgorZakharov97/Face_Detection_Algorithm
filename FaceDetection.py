@@ -60,9 +60,9 @@ def detectFace(filename):
 
     # Test an image
     print("Testing...\n")
-    d, i = testImage(eigenfaces, weights, mean, filename)
+    d, ind = testImage(eigenfaces, weights, mean, filename)
 
-    print("The closest image is filename=" + file_names[i])
+    print("The closest image is filename=" + file_names[ind])
     print("The distance is d=" + str(d))
     
 
@@ -137,11 +137,11 @@ def testImage(eigenfaces, weights, mean, filename="test.png"):
 
     for i in range(len(weights)):
         distances[i] = la.norm(weights[i] - w)
-        index = i
 
-    d = np.min(distances) # the minimal distance to a pic from library
+    d = np.amin(distances) # the minimal distance to a pic from library
+    index = np.where(distances == d)[0][0]
 
-    return d, i
+    return d, index
 
 
 file_to_test = "./Faces/face_1.pgm"
