@@ -136,7 +136,7 @@ def testImage(eigenfaces, weights, mean, filename="test.png"):
     distances = [0] * len(weights) # the distance vector
 
     for i in range(len(weights)):
-        distances[i] = abs(weights[i] - w)
+        distances[i] = la.norm(weights[i] - w)
         index = i
 
     d = np.min(distances) # the minimal distance to a pic from library
