@@ -20,11 +20,11 @@ def readFaces():
         reshaped = data.reshape(-1)
         d[:,i] = reshaped
 
-    return d
+    return d, file_names
 
 def detectFace(filename):
     print("Reading faces...")
-    d = readFaces()
+    d, file_names = readFaces()
     n = d.shape[1]
     
     print("Building library...")
@@ -60,7 +60,10 @@ def detectFace(filename):
 
     # Test an image
     print("Testing...\n")
-    testImage(eigenfaces, weights, mean, filename)
+    d, i = testImage(eigenfaces, weights, mean, filename)
+
+    print("The closest image is filename=" + file_names[i])
+    print("The distance is d=" + str(d))
     
 
 #Step 2
@@ -138,7 +141,7 @@ def testImage(eigenfaces, weights, mean, filename="test.png"):
 
     d = np.min(distances) # the minimal distance to a pic from library
 
-    print("The closest distance is " + str(d))
+    return d, i
 
 
 file_to_test = "./Faces/face_1.pgm"
