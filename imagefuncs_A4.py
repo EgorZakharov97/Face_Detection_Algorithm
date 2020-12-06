@@ -1,5 +1,5 @@
 """
-Library of image manipulation functions - Assignment 3
+Library of image manipulation functions - Assignment 4
 """
 
 import numpy as np
@@ -14,6 +14,11 @@ PGMFile = namedtuple('PGMFile', 'max_shade, data')
 
 # kernel K2 from class
 K2 = np.array([[-1,-1,-1],[-1,8,-1],[-1,-1,-1]])
+
+# kernels for use in calculating central differences
+CDIFF = np.array([-0.5,0,0.5])
+CDIFF_TRUNC = np.array([-1,1])
+
 
 
 """
@@ -101,8 +106,6 @@ def write_image(filename, image):
 
 
 """
-Question 1 (a) and (b)
-
 Given a standard deviation sigma, the formulas for the 1D and 2D Gaussian
 distributions are
 
@@ -143,12 +146,6 @@ def gaussian2D(sigma=1, r=2):
     # rescale so the entries sum to 1
     return gaussArray/np.sum(gaussArray)
 
-
-"""
-Question 1 (c), (d), (e)
-We implement the 1D and 2D convolution operations with truncation
-at the boundaries.
-"""
 
 """
 In the convolution operation, the current pixel is aligned with the center of
@@ -205,8 +202,10 @@ For example, if (j,k) = (0,0), then the slice of the array would be
 array[0, 0:r+1], and the corresponding slice of the kernel would be
 kernel[r:2r+1].
 
-At the moment, the only available boundary condition is to renormalize the 
-truncated kernel to sum to 1.  However, this may change in future assignments!
+Multiple options, selected by keyword, are available at the boundaries
+of the image.
+
+The resulting array is rounded to the nearest integer before it is returned.
 """
 def convolve1D_horizontal(data, kernel, boundary_option="renormalize"):
     # Assumes the length of the kernel has the form 2r+1
@@ -238,6 +237,12 @@ def convolve1D_horizontal(data, kernel, boundary_option="renormalize"):
                 kernel_sum = np.sum(kernel[kl:kr])
                 for aj in range(numrows):
                     conv_array[aj,ak] = np.dot(data[aj,pl:pr],kernel[kl:kr]/kernel_sum)
+            if boundary_option == "central-diff":
+                # for use in calculating gradient vectors
+                # the slice of the pixel array is dotted with the truncated
+                # version of the central differences kernel
+                for aj in range(numrows):
+                    conv_array[aj,ak] = np.dot(data[aj,pl:pr],CDIFF_TRUNC)
                 
     return np.rint(conv_array)
 
@@ -347,13 +352,11 @@ def convolve2D_separable(image, kernel):
 
 
 """
-Question 2
-
 Receives an image as a PGMFile and performs edge detection by convolving with 
 the kernel K2 given in class.  See the function convolve2D_array() for the
 appropriate boundary conditions.
 
-After convolution, take the absolute value of  the array, then find the 
+After convolution, take the absolute value of the array, then find the 
 maximum value in the result.
 
 Different options are possible for the rest of the image processing.  I have
@@ -374,5 +377,203 @@ def edge_detect_K2(image):
         conv2array = np.clip(conv2array, 0, image.max_shade)
         new_max = image.max_shade
     return PGMFile(new_max, conv2array)
+
+
+"""
+Given a function of two variables, f(j,k), where j and k are integers, the
+central difference approximation to the gradient of the function at the
+position (j,k) is
+
+grad f(j,k) = ( ( f(j+1,k)-f(j-1,k) )/2, ( f(j,k+1)-f(j,k-1) )/2 ).
+
+If f is defined for j in [0,N], then the j-component of grad f(0,k) is
+f(1,k)-f(0,k), and the j-component of grad f(N,k) is f(N,k)-f(N-1,k).
+
+If f is defined for k in [0,M], then the k-component of grad f(j,0) is
+f(j,1)-f(j,0), and the y-component of grad f(j,M) is f(j,M)-f(j,M-1).
+
+Away from the boundaries, each component of the gradient vector can be
+obtained by convolution with the kernel [-0.5, 0, 0.5].  The boundary cases
+have been added to the 1D convolution function.
+ 
+This function receives a NumPy array of function values whose shape is 
+(numrows, numcols).  It returns a NumPy ndarray of shape (numrows, numcols, 2),
+where the 2-vector at position (j,k) is the gradient vector grad f(j,k) as 
+calculated above.
+"""
+def gradient_vectors(data):
+    numrows, numcols = data.shape
+
+    gradientjk = np.zeros((numrows, numcols, 2))
+    
+    # the horizontal direction corresponds to the index k
+    gradientjk[:,:,1] = convolve1D_horizontal(data, CDIFF, boundary_option="central-diff")
+    gradientjk[:,:,0] = (convolve1D_horizontal(data.T, CDIFF, boundary_option="central-diff")).T
+
+    return gradientjk
+
+    
+"""
+This function receives a NumPy array of gradient vectors of shape (M, N, 2),
+and returns a NumPy array of shape (M, N), where each entry is the length of
+the gradient 2-vector at that position.
+"""
+def gradient_lengths(gradientjk):
+    return np.rint(np.sqrt(np.sum(gradientjk*gradientjk, axis=2)))    
+
+
+"""
+This function receives a NumPy array of gradient vectors, and a NumPy array of
+the lengths of these gradient vectors.  This is redundant since the latter can
+be computed from the former.  However, this function is used in Step 2 of the 
+Canny Edge Detection algorithm, and the array of gradient vector lengths is
+computed in Step 1.  Since it almost certainly exists already, we pass it as
+an argument rather than recomputing it.
+
+[JV note:  If you find this inelegant... I agree!  A lot of problems would be 
+solved by writing a CannyEdge class.  We're not requiring classes in this 
+course, so I'm doing this the hard way, but feel free to improve on my style 
+in your solution.]
+
+The values in the array of lengths form a preliminary image of the edges.  At 
+each position (j,k), gradientjk has the corresponding gradient vector.  We use
+the gradient vectors to thin the edges.
+
+First, we calculate the angle of the gradient vector, where the 
++j-direction corresponds to an angle of 0.  Then we identify angles that
+differ by pi, and round the angle to the closest of 0, pi/4, pi/2 and 
+3*pi/4.  This rounded angle determines the two nearest neighbors to which
+we compare the current pixel value, as follows.
+
+0 -> compare neighbors at positions (j+1,k) and (j-1,k)
+
+pi/4 -> compare neighbors at positions (j+1,k+1) and (j-1,k-1)
+
+pi/2 -> compare neighbors at positions (j,k+1) and (j,k-1)
+
+3*pi/4 -> compare neighbors at positions (j+1,k-1) and (j-1,k+1)
+
+If the current value is smaller than one of these two neighbors, it is not the 
+sharpest part of the edge, so we suppress it by setting it to 0.
+"""
+def thin_edges(gradientjk, length_array):
+    numrows, numcols = length_array.shape
+    
+    # array to hold the results of the edge thinning
+    thin_array = np.zeros((numrows, numcols))
+    
+    """
+    At each position (j,k), calculate the angle that the gradient vector makes 
+    with the positive j-axis.  Each angle theta is in (-pi, pi].
+    """
+    theta_array = np.arctan2(gradientjk[:,:,1],gradientjk[:,:,0])
+    
+    for tj in range(numrows):
+        for tk in range(numcols):
+            # current pixel value
+            length = length_array[tj,tk]
+
+            theta = theta_array[tj,tk]
+            """
+            Angles that differ by pi are identified.  If theta is negative, we
+            replace it by theta + pi.
+            """
+            if theta < 0:
+                theta = theta + math.pi
+            
+            """
+            theta is now an angle in [0, pi].  We round it to one of four bins:
+            0, pi/4, pi/2 and 3*pi/4.  Corresponding to this angle, we compare
+            the current pixel to its nearest neighbors in the appropriate
+            direction.
+            
+            Pixels on the edges of the image might not have a nearest neighbor
+            in one of the required directions.  We use the helper functions for
+            convolution to determine the indices of the nearest neighbors, if
+            they exist.
+            """
+            
+            # Attempt to take 1 step in the +/- j directions
+            jdn, jup = array_boundaries(tj, numrows, 1)
+
+            # Attempt to take 1 step in the +/- k directions
+            kdn, kup = array_boundaries(tk, numcols, 1)
+
+            # array_boundaries() returns the upper index for a slice
+            # in this context, we want a position, so adjust down by 1
+            jup = jup - 1
+            kup = kup - 1
+            
+            up_pixel = dn_pixel = 0
+            
+            if theta < math.pi/8. or theta >= 7*math.pi/8:
+                #theta rounds to 0 - check +/- j
+                up_pixel = length_array[jup,tk]
+                dn_pixel = length_array[jdn,tk]
+            elif theta < 3*math.pi/8:
+                #theta rounds to pi/4 - check (+1,+1) and (-1,-1)
+                up_pixel = length_array[jup,kup]
+                dn_pixel = length_array[jdn,kdn]
+            elif theta < 5*math.pi/8:
+                #theta rounds to pi/2 - check +/- k
+                up_pixel = length_array[tj,kup]
+                dn_pixel = length_array[tj,kdn]
+            elif theta < 7*math.pi/8:
+                #theta rounds to 3*pi/4 - check (+1,-1) and (-1,+1)
+                up_pixel = length_array[jup,kdn]
+                dn_pixel = length_array[jdn,kup]
+    
+            # Only keep the current value if it is a local max along the 
+            # direction of the gradient
+            if length >= up_pixel and length >= dn_pixel:
+                # Local max, keep this value
+                thin_array[tj,tk] = length
+    
+    return thin_array
+
+
+"""
+This function receives a NumPy array containing the pixel data for an image
+with thinned edges, and it suppresses noise using low and high cutoffs.
+ - If a pixel value is below the low cutoff, suppress it by setting it to 0.
+ - If a pixel is above the low cutoff but below the high cutoff, suppress it
+   unless it has a pixel above the high cutoff among its eight nearest
+   neighbors.
+The function returns a NumPy array with the pixel values after noise
+suppression.
+"""
+def suppress_noise(thin_data, low_threshold, high_threshold):
+
+    numrows, numcols = thin_data.shape
+    
+    suppr_data = np.zeros((numrows, numcols))
+    
+    for tj in range(numrows):
+        for tk in range(numcols):
+            pixel = thin_data[tj,tk]
+
+            if pixel >= high_threshold:
+                """
+                This edge is strong:  keep it
+                """
+                suppr_data[tj,tk] = pixel
+            elif pixel >= low_threshold:
+                """
+                This edge is too weak to stand alone, but it will be kept if
+                it is adjacent to a strong edge.
+                Consider its neighbors one step in every direction, if they are
+                within the boundaries of the array.  If any one of these
+                neighbors is greater than the high threshold, we keep the 
+                current edge.
+                """
+                jdn, jup = array_boundaries(tj, numrows, 1)
+                kdn, kup = array_boundaries(tk, numcols, 1)
+                
+                if np.amax(thin_data[jdn:jup,kdn:kup]) >= high_threshold:
+                    suppr_data[tj,tk] = pixel
+                
+    return suppr_data
+
+
 
 
