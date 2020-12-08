@@ -17,7 +17,7 @@ class FaceDetector:
     # Private constants
     # -----------------
 
-    __PATH_TO_FACES = 'singles/'
+    __PATH_TO_FACES = 'library/'
     __PATH_TO_DATA = 'data/'
     __EIGEN_FACES = 'eigenfaces'
     __WEIGHTS = 'weights'
@@ -50,7 +50,7 @@ class FaceDetector:
     # Throws an exception if library contants have changed
     def __checkLibForChanges(self):
         current_file_names = os.listdir(self.__PATH_TO_FACES)
-        if not current_file_names in self.__file_names:
+        if not current_file_names in self._file_names:
             if self._settings["showSteps"]: print("Library contains changes. Rebuilding...")
             raise Exception('lib', 'changed')
 
@@ -75,7 +75,7 @@ class FaceDetector:
         settings_read = filehandler.read()
         settings_read = json.loads(settings_read)
 
-        if self.__settings["detectEdges"] != settings_read["detectEdges"]:
+        if self._settings["detectEdges"] != settings_read["detectEdges"]:
             raise Exception("settings", "mismatch")
 
         self._eigenfaces = np.load(self.__PATH_TO_DATA + self.__EIGEN_FACES + '.npy')
@@ -236,7 +236,7 @@ class FaceDetector:
 
         img = imf.read_image(file_name_to_test)
         if self._settings["detectEdges"]: img = self.__detectEdges(img)
-        
+
         max_shade, data = img
         data = data.flatten()
 
