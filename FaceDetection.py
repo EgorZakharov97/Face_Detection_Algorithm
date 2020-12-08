@@ -25,7 +25,6 @@ class FaceDetector:
     __FILE_NAMES = 'file_names'
     __SETTINGS = 'settings'
 
-    __instance = None
     __SIGMA = 2
     __R = 4
     __GAUSS2 = imf.gaussian1D(__SIGMA, __R)
@@ -33,6 +32,8 @@ class FaceDetector:
     # -----------------
     # Private variables
     # -----------------
+
+    __instance = None
     __size = None
 
     __eigenfaces = np.array([])
@@ -296,6 +297,8 @@ class FaceDetector:
             self.__getData()
         except Exception as e:
             # If we catch an exception, we need to rebuild the library
+            # We want to rebuild the library if one of the files is missing
+            # Or if we received the setting saveData=False
             print("Setting library...")
             self.__setData()
         finally:
