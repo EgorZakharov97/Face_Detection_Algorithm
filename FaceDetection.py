@@ -33,13 +33,13 @@ class FaceDetector:
     # -----------------
     # Private variables
     # -----------------
-    _size = None
+    __size = None
 
-    _eigenfaces = np.array([])
-    _weights = np.array([])
-    _mean = np.array([])
-    _file_names = []
-    _settings = {}
+    __eigenfaces = np.array([])
+    __weights = np.array([])
+    __mean = np.array([])
+    __file_names = []
+    __settings = {}
 
     # ---------------
     # PRIVATE METHODS
@@ -49,7 +49,7 @@ class FaceDetector:
     # Throws an exception if library contants have changed
     def __checkLibForChanges(self):
         current_file_names = os.listdir(self.__PATH_TO_FACES)
-        if not current_file_names in self._file_names:
+        if not current_file_names in self.__file_names:
             print("Library contains changes. Rebuilding...")
             raise Exception('lib', 'changed')
 
@@ -74,13 +74,13 @@ class FaceDetector:
         settings_read = filehandler.read()
         settings_read = json.loads(settings_read)
 
-        if self._settings["detectEdges"] != settings_read["detectEdges"]:
+        if self.__settings["detectEdges"] != settings_read["detectEdges"]:
             raise Exception("settings", "mismatch")
 
-        self._eigenfaces = np.load(self.__PATH_TO_DATA + self.__EIGEN_FACES + '.npy')
-        self._weights = np.load(self.__PATH_TO_DATA + self.__WEIGHTS + '.npy')
-        self._mean = np.load(self.__PATH_TO_DATA + self.__MEAN + '.npy')
-        self._file_names = np.load(self.__PATH_TO_DATA + self.__FILE_NAMES + '.npy')
+        self.__eigenfaces = np.load(self.__PATH_TO_DATA + self.__EIGEN_FACES + '.npy')
+        self.__weights = np.load(self.__PATH_TO_DATA + self.__WEIGHTS + '.npy')
+        self.__mean = np.load(self.__PATH_TO_DATA + self.__MEAN + '.npy')
+        self.__file_names = np.load(self.__PATH_TO_DATA + self.__FILE_NAMES + '.npy')
 
         self.__checkLibForChanges()
         
@@ -103,20 +103,20 @@ class FaceDetector:
     # Reads faces in the library folder and detects its edges if required
     # Returns a matrix containing the data of all images
     def __readFaces(self):
-        self._file_names = os.listdir(self.__PATH_TO_FACES)
+        self.__file_names = os.listdir(self.__PATH_TO_FACES)
         d = []
-        print(f"\tDetected {len(self._file_names)} files")
+        print(f"\tDetected {len(self.__file_names)} files")
 
-        for i, filename in enumerate(self._file_names, start=0):
+        for i, filename in enumerate(self.__file_names, start=0):
             img = imf.read_image(self.__PATH_TO_FACES + filename)
 
-            if self._settings["detectEdges"] :
-                print(f"\tDetecting edges: {i} of {len(self._file_names)} ")
+            if self.__settings["detectEdges"] :
+                print(f"\tDetecting edges: {i} of {len(self.__file_names)} ")
                 img = self.__detectEdges(img)
 
-            if self._size == None or len(d) == 0:
-                self._size = len(img.data[0])
-                d = np.zeros((self._size**2, len(self._file_names)), dtype=np.int32)
+            if self.__size == None or len(d) == 0:
+                self.__size = len(img.data[0])
+                d = np.zeros((self.__size**2, len(self.__file_names)), dtype=np.int32)
 
             max_shade, data = img
             reshaped = data.reshape(-1)
@@ -135,11 +135,11 @@ class FaceDetector:
         print("\tBuilding library...")
 
         # Calculate the average column x
-        self._mean = d.mean(axis=1)
+        self.__mean = d.mean(axis=1)
 
         # Subtract x from every column of the d x n matrix
         # as a result we get a transpose of L
-        LT = (d.transpose() - self._mean)
+        LT = (d.transpose() - self.__mean)
 
         # find L
         L = LT.transpose()
@@ -155,25 +155,25 @@ class FaceDetector:
         self._eigenfaces = self.__findEigenFaces(LTL, L)
 
         # find weights
-        self._weights = [0] * n
+        self.__weights = [0] * n
 
         for i in range(n):
             col_L = L[:,i]
-            self._weights[i] = self.__findWeight(self._eigenfaces, col_L)
+            self.__weights[i] = self.__findWeight(self.__eigenfaces, col_L)
 
-        self._weights = np.array(self._weights)
+        self.__weights = np.array(self.__weights)
 
-        if self._settings["saveData"] :
+        if self.__settings["saveData"] :
             print("\tdone.\n\tSaving data...")
             if not os.path.exists(self.__PATH_TO_DATA): os.mkdir(self.__PATH_TO_DATA)
-            np.save(self.__PATH_TO_DATA + self.__EIGEN_FACES + '.npy', self._eigenfaces)
-            np.save(self.__PATH_TO_DATA + self.__WEIGHTS + '.npy', self._weights)
-            np.save(self.__PATH_TO_DATA + self.__MEAN + '.npy', self._mean)
-            np.save(self.__PATH_TO_DATA + self.__FILE_NAMES + '.npy', self._file_names)
+            np.save(self.__PATH_TO_DATA + self.__EIGEN_FACES + '.npy', self.__eigenfaces)
+            np.save(self.__PATH_TO_DATA + self.__WEIGHTS + '.npy', self.__weights)
+            np.save(self.__PATH_TO_DATA + self.__MEAN + '.npy', self.__mean)
+            np.save(self.__PATH_TO_DATA + self.__FILE_NAMES + '.npy', self.__file_names)
 
             # saving current settings
             filehandler = open(self.__PATH_TO_DATA + self.__SETTINGS + '.txt', 'w')
-            filehandler.write(json.dumps(self._settings))
+            filehandler.write(json.dumps(self.__settings))
             filehandler.close()
         
 
@@ -237,14 +237,14 @@ class FaceDetector:
         max_shade, data = img
         data = data.flatten()
 
-        z = data - self._mean # subtract mean from image data
+        z = data - self.__mean # subtract mean from image data
 
-        w = self.__findWeight(self._eigenfaces, z)
+        w = self.__findWeight(self.__eigenfaces, z)
 
-        distances = [0] * len(self._weights) # the distance vector
+        distances = [0] * len(self.__weights) # the distance vector
 
-        for i in range(len(self._weights)):
-            distances[i] = la.norm(self._weights[i] - w)
+        for i in range(len(self.__weights)):
+            distances[i] = la.norm(self.__weights[i] - w)
 
         d = np.amin(distances) # the minimal distance to a pic from library
         index = np.where(distances == d)[0][0]
@@ -256,10 +256,10 @@ class FaceDetector:
     # If saveData=False, cleans the data and throws an exception
     def __updateSettings(self, detectEdges, saveData):
         
-        self._settings["detectEdges"] = detectEdges
-        self._settings["saveData"] = saveData
+        self.__settings["detectEdges"] = detectEdges
+        self.__settings["saveData"] = saveData
 
-        if not self._settings["saveData"]:
+        if not self.__settings["saveData"]:
             self.__cleanData()
             raise Exception("settings", "saveData=False")
 
@@ -303,5 +303,5 @@ class FaceDetector:
             print("Testing...\n")
             distance, index_in_names_array = self.__testImage(filename)
 
-            print("The closest image is filename=" + self._file_names[index_in_names_array])
+            print("The closest image is filename=" + self.__file_names[index_in_names_array])
             print(f"The distance is d={distance}\n")
