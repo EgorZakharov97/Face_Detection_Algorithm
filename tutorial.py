@@ -2,12 +2,8 @@ from FaceDetection import FaceDetector
 
 detector = FaceDetector()
 
-detector.detectFace("./Test/my_face.pgm")
-
-detector.trainModel()
-
 detector.updateSettings(
-    detectEdges=True,
+    detectEdges=False,
     saveData=True,
     showSteps=True,
     mode='no-data',
@@ -16,4 +12,4 @@ detector.updateSettings(
     trainDataPath="./library"
 )
 
-
+detector.detectFace("./Test/Robert_De_Niro_0002.pgm")

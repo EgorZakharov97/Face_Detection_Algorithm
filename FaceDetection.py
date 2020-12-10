@@ -250,7 +250,7 @@ class FaceDetector:
         if self._settings["showSteps"]: print("Looking for boundaries...")
         test_data_path = self._settings["singlesDataPath"]
         file_names = os.listdir(test_data_path)
-        d = []
+        d = 0
 
         if self._settings["showSteps"]:
             print("Calculating d_high...")
@@ -259,28 +259,28 @@ class FaceDetector:
         for i, image_path in enumerate(file_names, start=0):
             if self._settings["showSteps"]: ProgressBar.increaseProgressBar()
             d_new, index = self.__testImage(test_data_path + "/" + image_path)
-            d.append(d_new)
+            d += d_new
 
         if self._settings["showSteps"]: ProgressBar.completeProgressBar()
 
-        d_high = max(d)
+        d_high = d/len(file_names)
 
         test_data_path = self._settings["duplicatesDataPath"]
         file_names = os.listdir(test_data_path)
-        d = []
+        d = 0
 
         if self._settings["showSteps"]:
             print("Calculating d_low...")
-            self.__initializeProgressBar(len(file_names))
+            ProgressBar.initializeProgressBar(len(file_names))
 
         for i, image_path in enumerate(file_names, start=0):
             if self._settings["showSteps"]: ProgressBar.increaseProgressBar()
             d_new, index = self.__testImage(test_data_path + "/" + image_path)
-            d.append(d_new)
+            d += d_new
 
         if self._settings["showSteps"]: ProgressBar.completeProgressBar()
 
-        d_low = max(d)
+        d_low = d/len(file_names)
 
         self._settings["d_low"] = d_low
         self._settings["d_high"] = d_high
