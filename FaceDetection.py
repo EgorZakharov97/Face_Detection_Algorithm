@@ -65,6 +65,7 @@ class FaceDetector:
             if self._settings["showSteps"]: print("Library contains changes. Rebuilding...")
             raise Exception('lib', 'changed')
 
+    # Writes computed model into a file
     def __saveData(self):
         if self._settings["showSteps"]: print("done.\nSaving data...")
         if not os.path.exists(self.__PATH_TO_DATA): os.mkdir(self.__PATH_TO_DATA)
@@ -74,7 +75,7 @@ class FaceDetector:
         np.save(self.__PATH_TO_DATA + self.__FILE_NAMES + '.npy', self._file_names)
         self.__saveSettings()
     
-    # Cleans the data and removed the data folder
+    # Removes computed model and removes the folder
     def __cleanData(self):
         if os.path.exists('./' + self.__PATH_TO_DATA):
             if self._settings["showSteps"]: print("Cleaning up data...")
@@ -246,6 +247,7 @@ class FaceDetector:
 
         return d, index
 
+    # Computes d_low and d_high
     def __findBoundaries(self):
         if self._settings["showSteps"]: print("Looking for boundaries...")
         test_data_path = self._settings["singlesDataPath"]
@@ -287,6 +289,7 @@ class FaceDetector:
 
         if self._settings["saveData"]: self.__saveSettings()
 
+    # Returns the final answer
     def __makeConclusion(self, d):
         try:
             d_low = self._settings["d_low"]
@@ -405,11 +408,6 @@ class FaceDetector:
         if(self._settings["saveData"]): self.__saveSettings()
 
     # Runs the face detection algorithm
-    # Settings:
-    #           detectEdges - whether images requires edges detection
-    #           saveData    - whether you want to save the processed library for future use
-    #           showSteps   - whether you want to see print statements
-    # If saveData=False, cleans the data and throws an exception
     def detectFace(self, filename):
         if self._settings["showSteps"]: print(f"Testing image {filename}\n")
 
